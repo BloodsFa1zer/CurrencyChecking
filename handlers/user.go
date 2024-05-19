@@ -39,22 +39,3 @@ func (uh *UserHandler) GetRate(c echo.Context) error {
 
 	return c.JSON(respStatus, response.UserResponse{Status: respStatus, Message: "success", Data: &echo.Map{"data": currencyRate}})
 }
-
-//
-//func (uh *UserHandler) Login(c echo.Context) error {
-//	var user database.User
-//
-//	if err := c.Bind(&user); err != nil {
-//		return c.JSON(http.StatusBadRequest, response.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &echo.Map{"data": err.Error()}})
-//	}
-//
-//	t, err, respStatus := uh.userService.CreateToken(user)
-//	if err == errors.New("you have no account and will be redirected to registration page") {
-//		//return c.Redirect(respStatus, "/register")
-//	}
-//	if err != nil {
-//		return c.JSON(respStatus, response.UserResponse{Status: respStatus, Message: "error", Data: &echo.Map{"data": err.Error()}})
-//	}
-//
-//	return c.JSON(respStatus, response.UserResponse{Status: respStatus, Message: "success", Data: &echo.Map{"token": t}})
-//}

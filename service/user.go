@@ -52,8 +52,7 @@ func (us *UserService) CreateUser(user database.User) (error, int) {
 
 func (us *UserService) GetRate() (string, error, int) {
 
-	cfg := config.LoadENV("config/.env")
-	cfg.ParseENV()
+	cfg := config.LoadENV(".env")
 
 	// can be http.Get(URL as a const), but to make up scalable I decided to recreate URL
 	url := cfg.URL + "?apikey=" + cfg.ApiKey + "&currencies=UAH"

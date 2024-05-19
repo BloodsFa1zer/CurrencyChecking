@@ -57,8 +57,7 @@ func (ues *UserEmailSender) ScheduleEmailSender() {
 }
 
 func sendEmail(to, subject, body string) error {
-	cfg := config.LoadENV("config/.env")
-	cfg.ParseENV()
+	cfg := config.LoadENV(".env")
 
 	message := fmt.Sprintf("From: %s\r\n", cfg.Email) +
 		fmt.Sprintf("To: %s\r\n", to) +

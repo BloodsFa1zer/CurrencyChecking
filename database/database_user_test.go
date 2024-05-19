@@ -11,99 +11,87 @@ import (
 )
 
 func TestInsertUser(t *testing.T) {
-	t.Run("Email does not exist, insert successful", func(t *testing.T) {
-		db, mock, err := sqlmock.New()
-		if err != nil {
-			t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-		}
-		defer db.Close()
 
-		userDB := &UserDatabase{Connection: db}
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
 
-		user := User{
-			Email: "test@gmail.com",
-		}
+	userDB := &UserDatabase{Connection: db}
 
-		// Expect the SELECT query to check if the email exists
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM Users WHERE email = $1)")).
-			WithArgs(user.Email).
-			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+	tests := []struct {
+		name             string
+		user             User
+		mockExpectations func()
+		expectedError    error
+	}{
+		{
+			name: "Email does not exist, insert successful",
+			user: User{
+				Email: "test@gmail.com",
+			},
+			mockExpectations: func() {
+				// Mock the email existence check
+				mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM Users WHERE email = $1)")).
+					WithArgs("test@gmail.com").
+					WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
-		formattedTime := time.Now().Format("2006.01.02 15:04")
+				formattedTime := time.Now().Format("2006.01.02 15:04")
 
-		// Expect the INSERT query to insert the new user
-		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO Users (email, created_at) VALUES ($1, $2)")).
-			WithArgs(user.Email, formattedTime).
-			WillReturnResult(sqlmock.NewResult(1, 1))
+				// Mock the insert query
+				mock.ExpectExec(regexp.QuoteMeta("INSERT INTO Users (email, created_at) VALUES ($1, $2)")).
+					WithArgs("test@gmail.com", formattedTime).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+			},
+			expectedError: nil,
+		},
+		{
+			name: "Email already exists",
+			user: User{
+				Email: "test@gmail.com",
+			},
+			mockExpectations: func() {
+				// Mock the email existence check
+				mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM Users WHERE email = $1)")).
+					WithArgs("test@gmail.com").
+					WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+			},
+			expectedError: errors.New("such Email already exists"),
+		},
+		{
+			name: "Database error on email check",
+			user: User{
+				Email: "test@gmail.com",
+			},
+			mockExpectations: func() {
+				// Mock the email existence check with an error
+				mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM Users WHERE email = $1)")).
+					WithArgs("test@gmail.com").
+					WillReturnError(errors.New("db error"))
+			},
+			expectedError: errors.New("db error"),
+		},
+	}
 
-		// Call the function being tested
-		err = userDB.InsertUser(user)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mockExpectations()
 
-		// Check for errors
-		assert.NoError(t, err, "InsertUser should not return an error")
+			err := userDB.InsertUser(tt.user)
 
-		// Verify that all expectations were met
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
+			if tt.expectedError != nil {
+				assert.EqualError(t, err, tt.expectedError.Error())
+			} else {
+				assert.NoError(t, err)
+			}
 
-	t.Run("Email already exists", func(t *testing.T) {
-		db, mock, err := sqlmock.New()
-		if err != nil {
-			t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-		}
-		defer db.Close()
-
-		userDB := &UserDatabase{Connection: db}
-
-		user := User{
-			Email: "test@gmail.com",
-		}
-
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM Users WHERE email = $1)")).
-			WithArgs(user.Email).
-			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-
-		err = userDB.InsertUser(user)
-
-		assert.EqualError(t, err, "such Email already exists")
-
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("Database error during insert", func(t *testing.T) {
-		db, mock, err := sqlmock.New()
-		if err != nil {
-			t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-		}
-		defer db.Close()
-
-		userDB := &UserDatabase{Connection: db}
-
-		user := User{
-			Email: "test@gmail.com",
-		}
-
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM Users WHERE email = $1)")).
-			WithArgs(user.Email).
-			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-
-		formattedTime := time.Now().Format("2006.01.02 15:04")
-		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO Users (email, created_at) VALUES ($1, $2)")).
-			WithArgs(user.Email, formattedTime).
-			WillReturnError(errors.New("insert failed"))
-
-		err = userDB.InsertUser(user)
-
-		assert.EqualError(t, err, "insert failed")
-
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
+			// Verify that all expectations were met
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unfulfilled expectations: %s", err)
+			}
+		})
+	}
 }
 
 func TestSelectUsersEmail(t *testing.T) {

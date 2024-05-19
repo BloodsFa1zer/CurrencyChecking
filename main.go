@@ -21,5 +21,5 @@ func main() {
 	routes.UserRoute(e)
 	database.NewUserDatabase()
 
-	e.Logger.Fatal(e.Start(":6000"))
+	e.Logger.Fatal(e.Start(":8080"))
 }
